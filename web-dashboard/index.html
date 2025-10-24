@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTOS Device Control Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <noscript>
+        <div class="alert alert-error">
+            This dashboard requires JavaScript. Please enable it to continue.
+        </div>
+    </noscript>
+
+    <div id="unsupportedMessage" class="alert alert-error hidden">
+        Your browser does not support the Web Serial API. Use the latest Chrome or Edge and enable the
+        "Experimental Web Platform features" flag if necessary.
+    </div>
+
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <h1>RTOS Device Control</h1>
+            <p class="subtitle">Manage your STM32L4-powered lamp or fan from this browser dashboard.</p>
+        </header>
+
+        <section class="status-card">
+            <div id="statusIndicator" class="status-indicator" data-state="disconnected"></div>
+            <div class="status-details">
+                <h2 id="connectionStatus">Disconnected</h2>
+                <p id="deviceStatus">Device state: Unknown</p>
+                <p id="lastUpdate">Last update: --</p>
+            </div>
+        </section>
+
+        <section class="control-panel">
+            <button id="toggleDevice" class="btn primary" disabled>Turn On</button>
+            <button id="refreshStatus" class="btn outlined" disabled>Refresh Status</button>
+        </section>
+
+        <section class="connection-panel">
+            <div class="input-group">
+                <label for="portSelect">Serial port</label>
+                <select id="portSelect" disabled>
+                    <option value="">No ports detected</option>
+                </select>
+            </div>
+            <div class="button-group">
+                <button id="requestPort" class="btn secondary">Request Port Access</button>
+                <button id="connect" class="btn primary">Connect</button>
+                <button id="disconnect" class="btn danger" disabled>Disconnect</button>
+            </div>
+        </section>
+
+        <section class="log-panel">
+            <div class="log-header">
+                <h3>Serial Log</h3>
+                <button id="clearLog" class="btn subtle">Clear</button>
+            </div>
+            <pre id="logOutput" class="log-output">Web Serial idle…</pre>
+        </section>
+
+        <section class="help-panel">
+            <h3>Getting Started</h3>
+            <ul>
+                <li>Use Chrome/Edge 89+ with the Web Serial API enabled.</li>
+                <li>Connect your STM32L4 board and grant access via “Request Port Access”.</li>
+                <li>Once connected, toggle the device or request status to synchronize.</li>
+            </ul>
+        </section>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

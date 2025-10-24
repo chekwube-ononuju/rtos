@@ -1,0 +1,322 @@
+:root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --primary: #0069d9;
+    --primary-dark: #0053ae;
+    --secondary: #6c757d;
+    --secondary-dark: #545b62;
+    --danger: #dc3545;
+    --danger-dark: #c82333;
+    --text: #1f2933;
+    --text-muted: #6b7280;
+    --border: 1px solid rgba(15, 23, 42, 0.08);
+    --radius: 12px;
+    --shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+    --transition: 0.2s ease-in-out;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    padding: 48px 16px;
+    background: var(--bg);
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--text);
+}
+
+.dashboard {
+    max-width: 960px;
+    margin: 0 auto;
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: var(--border);
+    box-shadow: var(--shadow);
+    padding: 40px 48px;
+    display: grid;
+    gap: 32px;
+}
+
+.dashboard-header {
+    text-align: center;
+    display: grid;
+    gap: 12px;
+}
+
+.dashboard-header h1 {
+    margin: 0;
+    font-size: 2.4rem;
+    letter-spacing: -0.04em;
+}
+
+.dashboard-header .subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+.status-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px;
+    border-radius: var(--radius);
+    border: var(--border);
+    background: #f9fafb;
+}
+
+.status-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #d1d5db;
+    box-shadow: inset 0 0 0 4px #f1f5f9;
+    transition: background var(--transition), box-shadow var(--transition);
+}
+
+.status-indicator[data-state="disconnected"] {
+    background: #d1d5db;
+    box-shadow: inset 0 0 0 4px #f8fafc;
+}
+
+.status-indicator[data-state="off"] {
+    background: #f59e0b;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+}
+
+.status-indicator[data-state="unknown"] {
+    background: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
+.status-indicator[data-state="on"] {
+    background: #22c55e;
+    box-shadow: 0 0 14px rgba(34, 197, 94, 0.55);
+}
+
+.status-details h2 {
+    margin: 0;
+    font-size: 1.6rem;
+}
+
+.status-details p {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.control-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+}
+
+.connection-panel {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: 1fr minmax(260px, auto);
+    align-items: end;
+}
+
+.input-group {
+    display: grid;
+    gap: 8px;
+}
+
+.input-group label {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+select {
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    border: var(--border);
+    font-size: 1rem;
+    background: var(--surface);
+    appearance: none;
+    transition: border var(--transition), box-shadow var(--transition);
+}
+
+select:focus {
+    outline: none;
+    border-color: rgba(0, 105, 217, 0.6);
+    box-shadow: 0 0 0 4px rgba(0, 105, 217, 0.15);
+}
+
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border: none;
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: transform var(--transition), box-shadow var(--transition), background var(--transition), border var(--transition);
+}
+
+.btn.primary {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 12px 20px rgba(0, 105, 217, 0.25);
+}
+
+.btn.primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.btn.secondary {
+    background: var(--secondary);
+    color: #fff;
+}
+
+.btn.secondary:hover {
+    background: var(--secondary-dark);
+}
+
+.btn.danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.btn.danger:hover {
+    background: var(--danger-dark);
+}
+
+.btn.outlined {
+    border: 1px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+}
+
+.btn.outlined:hover {
+    background: rgba(0, 105, 217, 0.08);
+}
+
+.btn.subtle {
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    color: var(--text-muted);
+}
+
+.btn.subtle:hover {
+    background: rgba(15, 23, 42, 0.05);
+}
+
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    box-shadow: none;
+    transform: none;
+}
+
+.log-panel {
+    border: var(--border);
+    border-radius: var(--radius);
+    background: #f8fafc;
+    padding: 18px 20px;
+    display: grid;
+    gap: 16px;
+}
+
+.log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.log-output {
+    margin: 0;
+    max-height: 260px;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 16px;
+    border-radius: var(--radius);
+    overflow-y: auto;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.help-panel {
+    border: var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    background: #fff7ed;
+}
+
+.help-panel h3 {
+    margin-top: 0;
+}
+
+.help-panel ul {
+    margin: 12px 0 0;
+    padding-left: 20px;
+    color: var(--text-muted);
+}
+
+.alert {
+    max-width: 960px;
+    margin: 0 auto 24px;
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.alert-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid rgba(185, 28, 28, 0.3);
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media (max-width: 880px) {
+    .dashboard {
+        padding: 32px 24px;
+    }
+
+    .connection-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .button-group {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 620px) {
+    body {
+        padding: 32px 12px;
+    }
+
+    .dashboard {
+        padding: 28px 18px;
+    }
+
+    .status-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .status-indicator {
+        width: 16px;
+        height: 16px;
+    }
+}
