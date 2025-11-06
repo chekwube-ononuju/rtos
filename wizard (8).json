@@ -1,0 +1,301 @@
+{
+  "version": "1.0.2", 
+  "http": {"http": true, "https": false, "ui": true, "login": true}, 
+  "websocket": {"enable": true}, 
+  "api": {
+    "info": {
+      "type": "data", 
+      "readonly": true, 
+      "read_level": 0, 
+      "write_level": 0, 
+      "attributes": {
+        "project": {"type": "string", "value": "NIGHT ENERGY CONSOLE", "size": 40}, 
+        "fw": {"type": "string", "value": "v2.0.0", "size": 16}, 
+        "online": {"type": "bool", "value": true}, 
+        "rssi": {"type": "int", "value": -47}
+      }
+    }, 
+    "state": {
+      "type": "data", 
+      "readonly": true, 
+      "attributes": {
+        "voltage": {"type": "double", "value": 119.8, "format": "%.1f"}, 
+        "current": {"type": "double", "value": 0.61, "format": "%.2f"}, 
+        "power": {"type": "double", "value": 73.1, "format": "%.1f"}, 
+        "energy_kwh": {"type": "double", "value": 1.82, "format": "%.2f"}, 
+        "temperature": {"type": "double", "value": 26.4, "format": "%.1f"}, 
+        "humidity": {"type": "int", "value": 58}, 
+        "level": {"type": "int", "value": 83}, 
+        "online": {"type": "bool", "value": true}
+      }
+    }, 
+    "leds": {
+      "type": "data", 
+      "read_level": 3, 
+      "write_level": 3, 
+      "attributes": {
+        "lamp": {"type": "bool", "value": true}, 
+        "fan": {"type": "bool", "value": false}, 
+        "charger": {"type": "bool", "value": true}
+      }
+    }, 
+    "settings": {
+      "type": "data", 
+      "read_level": 3, 
+      "write_level": 7, 
+      "attributes": {
+        "max_power_w": {"type": "int", "value": 120}, 
+        "auto_cutoff": {"type": "bool", "value": true}, 
+        "sample_hz": {"type": "int", "value": 1000}
+      }
+    }, 
+    "network_settings": {
+      "type": "data", 
+      "read_level": 3, 
+      "write_level": 7, 
+      "attributes": {
+        "dhcp": {"type": "bool", "value": true}, 
+        "ip_address": {"type": "string", "value": "192.168.0.42", "size": 20}, 
+        "gw_address": {"type": "string", "value": "192.168.0.1", "size": 20}, 
+        "netmask": {"type": "string", "value": "255.255.255.0", "size": 20}
+      }
+    }, 
+    "events": {
+      "type": "data", 
+      "readonly": true, 
+      "attributes": {
+        "log": {"type": "string", "value": "[boot] Ready — dark mode loaded"}
+      }
+    }, 
+    "reboot": {
+      "type": "action", 
+      "read_level": 3, 
+      "write_level": 7
+    }, 
+    "reformat": {
+      "type": "action", 
+      "read_level": 3, 
+      "write_level": 7
+    }, 
+    "save_event": {
+      "type": "action", 
+      "read_level": 3, 
+      "write_level": 7
+    }, 
+    "firmware_update": {
+      "type": "ota", 
+      "read_level": 3, 
+      "write_level": 7
+    }, 
+    "local": {
+      "type": "local", 
+      "attributes": {
+        "username": {"type": "string", "value": "Joe", "size": 50}, 
+        "userlevel": {"type": "int", "value": 7}
+      }
+    }
+  }, 
+  "ui": {
+    "production": false, 
+    "brand": "NIGHT ENERGY", 
+    "theme": {
+      "mode": "dark", 
+      "accent": "#00e5ff"
+    }, 
+    "toolbar": {"layout": [
+        {"classes": "container", "css": "height:2.75rem; align-items:center; gap:.5rem; background: linear-gradient(90deg,#0b132b,#1c2541); padding:0 .75rem; border-bottom:1px solid #21314f;", "layout": [
+            {"type": "icon", "icon": "flash", "css": "color:#00e5ff; font-size:1.25rem;"},
+            {"type": "text", "format": "${info.project}", "css": "font-weight:800; letter-spacing:.5px; color:#e6f7ff;"},
+            {"type": "text", "format": "•", "css": "opacity:.5; margin:0 .5rem;"},
+            {"type": "text", "format": "FW ${info.fw}", "css": "color:#9edfff;"},
+            {"type": "text", "format": "•", "css": "opacity:.5; margin:0 .5rem;"},
+            {"type": "icon", "icon": "wifi", "css": "${info.online? 'color:#45ff9c':'color:#ff6b6b'}; margin-right:.25rem;"},
+            {"type": "text", "format": "${info.rssi} dBm", "css": "color:#c7eaff;"},
+            {"classes": "container", "css": "margin-left:auto; align-items:center; gap:.5rem;", "layout": [
+                {"type": "text", "format": "${info.online? 'ONLINE':'OFFLINE'}", "css": "${info.online? 'color:#45ff9c':'color:#ff6b6b'}; font-weight:700;"},
+                {"type": "action", "ref": "reboot", "title": "Reboot", "icon": "reload", "css": "background:#00e5ff22; border:1px solid #00e5ff55; border-radius:.375rem; padding:.25rem .5rem;"}
+              ]}
+          ]}
+      ]}, 
+    "pages": [
+      {"title": "📘 Project Spec", "icon": "document", "level": 0, "css": "padding:.75rem; display:flex; flex-direction:column; gap:.75rem;", "layout": [
+          {"classes": "panel", "css": "background:#0b1429; border:1px solid #223457; border-radius:.75rem; padding:.75rem;", "layout": [
+              {"classes": "title", "format": "Smart Home Energy Monitoring & Control — Capstone Brief"},
+              {"type": "text", "format": "Overview\nDesign and implement a Smart Home Energy Monitoring and Control System powered by a custom real-time operating system (RTOS). The system measures energy usage, identifies high-consumption devices, and provides automated or user-driven control. All tasks run under a self-built RTOS.\n\nExample Hardware\n• STM32 MCU (core)\n• Two INA219 sensors (lamp & USB charger)\n• Relay to switch a desk fan\n• Custom RTOS tasks:\n  – Task A: sample sensors at 1 kHz & compute averages\n  – Task B: transmit usage via Wi-Fi to web dashboard\n  – Task C: threshold monitoring that toggles the relay\n• Phone dashboard with real-time graphs & alerts\n\nEncouraged extensions: renewable integration, predictive load balancing, multi-room control", "css": "white-space:pre-wrap; color:#e6f7ff;"}
+            ]},
+          {"classes": "container", "css": "display:flex; gap:.75rem; flex-wrap:wrap;", "layout": [
+              {"classes": "panel", "css": "flex:1 1 22rem; min-width:20rem; max-height:18rem; overflow:auto; background:#0b1429; border:1px solid #223457; border-radius:.75rem;", "layout": [
+                  {"classes": "title", "format": "Objectives"},
+                  {"type": "text", "format": "• Build a minimal RTOS (scheduler, context switch, IPC, ISRs)\n• Develop firmware for sensing & control\n• Interface sensors, actuators, wireless\n• Provide a real-time UI for visualization & control\n• Validate performance & usability", "css": "white-space:pre-wrap;"}
+                ]},
+              {"classes": "panel", "css": "flex:1 1 22rem; min-width:20rem; max-height:18rem; overflow:auto; background:#0b1429; border:1px solid #223457; border-radius:.75rem;", "layout": [
+                  {"classes": "title", "format": "Required Specs"},
+                  {"type": "text", "format": "Hardware\n• ARM Cortex-M (STM32 recommended)\n• ≥2 current/voltage sensors\n• ≥1 actuator (relay/SSR)\n• UART/I²C/SPI available\n\nRTOS\n• Priority or round-robin scheduler\n• Context switching among ≥3 tasks\n• Queues/semaphores/shared memory\n• Interrupts integrated with scheduler\n• No external RTOS (FreeRTOS disallowed)\n\nReal-Time\n• Sampling ≥ 1 kHz\n• Interrupt-driven I/O & control\n• ≥3 independent tasks (sense/comm/UI)\n\nConnectivity\n• Wi-Fi/BLE/Zigbee\n• Log energy to host/cloud\n\nUI\n• Real-time visualization\n• Control ≥2 loads (manual/auto)\n• Configurable alerts\n\nConstraints\n• Device power < 2 W\n• 24 h continuous operation\n• ±5% energy accuracy", "css": "white-space:pre-wrap;"}
+                ]}
+            ]},
+          {"classes": "container", "css": "display:flex; gap:.75rem; flex-wrap:wrap;", "layout": [
+              {"classes": "panel", "css": "flex:1 1 22rem; min-width:20rem; background:#0b1429; border:1px solid #223457; border-radius:.75rem;", "layout": [
+                  {"classes": "title", "format": "Deliverables"},
+                  {"type": "text", "format": "• RTOS Implementation (code + README)\n• Working Prototype (24 h demo)\n• Final Report (≥15 pages, IEEE or instructor style)", "css": "white-space:pre-wrap;"}
+                ]},
+              {"classes": "panel", "css": "flex:2 1 28rem; min-width:20rem; max-height:18rem; overflow:auto; background:#0b1429; border:1px solid #223457; border-radius:.75rem;", "layout": [
+                  {"classes": "title", "format": "Evaluation (Total 300 pts)"},
+                  {"type": "text", "format": "1) RTOS Implementation — 120 pts\n   • Student-built RTOS — 15\n   • ≥3 concurrent tasks — 20\n   • Context switching — 20\n   • Interrupts + scheduler — 20\n   • IPC — 15\n   • Documentation — 20\n   • README — 10\n\n2) Working Prototype — 90 pts\n   • ARM Cortex-M — 5\n   • ≥2 sensors — 10\n   • ≥1 actuator — 10\n   • ≥1 kHz sampling — 10\n   • Wireless to host/cloud — 10\n   • Real-time UI — 10\n   • Control ≥2 loads — 10\n   • 24 h run — 10\n   • <2 W power — 15\n\n3) Final Report — 60 pts\n   • Length/format — 10\n   • Intro — 5\n   • Architecture diagrams — 5\n   • RTOS design — 15\n   • Task/scheduling — 5\n   • Testing/validation — 10\n   • Tradeoffs/limits — 5\n   • Conclusion/future work — 5\n\n4) Innovation & Extensions — 30 pts\n   • ≥1 extension — 20\n   • Explained in prototype & report — 10", "css": "white-space:pre-wrap;"}
+                ]}
+            ]},
+          {"classes": "panel", "css": "background:#0b1429; border:1px solid #223457; border-radius:.75rem; padding:.75rem;", "layout": [
+              {"classes": "title", "format": "Checklist (Quick Self-Review)"},
+              {"type": "text", "format": "☑ 1 kHz sampling verified with timing logs/logic analyzer\n☑ Context switch latency measured\n☑ ISR → scheduler integration proven\n☑ Queues/semaphores tested under load\n☑ 24 h stability test passed\n☑ ±5% energy accuracy validated vs. reference meter\n☑ Dashboard real-time + alerts + 2+ controllable loads\n☑ Power budget < 2 W", "css": "white-space:pre-wrap; color:#9bdcff;"}
+            ]}
+        ]},
+      {"title": "⚡ Live Energy", "icon": "pulse", "level": 0, "css": "padding:.75rem; display:flex; flex-direction:column; gap:.75rem;", "layout": [
+          {"classes": "panel", "css": "background: radial-gradient(1200px 300px at 10% -20%, #00e5ff22, transparent), radial-gradient(1200px 300px at 90% 120%, #45ff9c22, transparent); border:1px solid #1f2f4d; border-radius:.75rem; padding:.75rem;", "layout": [
+              {"classes": "container", "css": "display:flex; flex-wrap:wrap; gap:.75rem;", "layout": [
+                  {"classes": "card", "css": "flex:1 1 12rem; min-width:12rem; background:#0f1b33; border:1px solid #233559;", "layout": [
+                      {"format": "Power", "css": "opacity:.8;"},
+                      {"format": "${state.power} W", "css": "font-size: 1.75rem; font-weight: 900; color: #45ff9c;"}
+                    ]},
+                  {"classes": "card", "css": "flex:1 1 12rem; min-width:12rem; background:#0f1b33; border:1px solid #233559;", "layout": [
+                      {"format": "Voltage", "css": "opacity:.8;"},
+                      {"format": "${state.voltage} V", "css": "font-size:1.5rem; font-weight:800; color:#00e5ff;"}
+                    ]},
+                  {"classes": "card", "css": "flex:1 1 12rem; min-width:12rem; background:#0f1b33; border:1px solid #233559;", "layout": [
+                      {"format": "Current", "css": "opacity:.8;"},
+                      {"format": "${state.current} A", "css": "font-size:1.5rem; font-weight:800; color:#ffde59;"}
+                    ]},
+                  {"classes": "card", "css": "flex:1 1 12rem; min-width:12rem; background:#0f1b33; border:1px solid #233559;", "layout": [
+                      {"format": "Energy", "css": "opacity:.8;"},
+                      {"format": "${state.energy_kwh} kWh", "css": "font-size:1.5rem; font-weight:800; color:#d7b3ff;"}
+                    ]}
+                ]}
+            ]},
+          {"classes": "container", "css": "display:flex; gap:.75rem; flex-wrap:wrap;", "layout": [
+              {"classes": "panel", "css": "flex:1 1 18rem; min-width:18rem; background:#0b1429; border:1px solid #223457; border-radius:.75rem;", "layout": [
+                  {"classes": "title", "format": "Live Power Gauge"},
+                  {"type": "gauge", "ref": "state.power", "ticks": "0,50,100,150,200", "css": "height:10.5rem;"},
+                  {"type": "progress", "ref": "state.level", "css": "margin-top:.25rem;"},
+                  {"format": "Cutoff at ${settings.max_power_w} W • Auto ${settings.auto_cutoff? 'ON':'OFF'}", "css": "opacity:.7; font-size:.85rem;"}
+                ]},
+              {"classes": "panel", "css": "flex: 3 1 28rem; min-width: 20rem; background: #0b1429; border: 1px solid #223457; border-radius: .75rem;", "layout": [
+                  {"classes": "title", "format": "Power (last minute)"},
+                  {"type": "graph", "ref": "state.power", "options": {"xrange": 60, "updateMs": 50, "uplot": {"scales": {"y": {"auto": false, "min": 0, "max": 200}}}}}
+                ]}
+            ]},
+          {"classes": "container", "css": "display:flex; gap:.75rem; flex-wrap:wrap;", "layout": [
+              {"classes": "panel", "css": "flex:1 1 20rem; min-width:18rem; background:#0b1429; border:1px solid #223457; border-radius:.75rem;", "layout": [
+                  {"classes": "title", "format": "Quick Controls"},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "Lamp"},
+                      {"type": "toggle", "ref": "leds.lamp", "autosave": true}
+                    ]},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "Fan"},
+                      {"type": "toggle", "ref": "leds.fan", "autosave": true}
+                    ]},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "Charger"},
+                      {"type": "toggle", "ref": "leds.charger", "autosave": true}
+                    ]}
+                ]},
+              {"classes": "panel", "css": "flex:2 1 24rem; min-width:18rem; background:#0b1429; border:1px solid #223457; border-radius:.75rem;", "layout": [
+                  {"classes": "title", "format": "Alerts"},
+                  {"format": "${events.log}", "css": "white-space:pre-wrap; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; color:#bee3ff;"}
+                ]}
+            ]}
+        ]},
+      {"title": "🛠 Controls & Config", "icon": "settings", "level": 3, "css": "padding:.75rem; display:flex; flex-direction:column; gap:.75rem;", "layout": [
+          {"classes": "container", "css": "display:flex; gap:.75rem; flex-wrap:wrap;", "layout": [
+              {"classes": "panel", "css": "width:22rem; background:#0b1429; border:1px solid #223457;", "layout": [
+                  {"classes": "title", "format": "Thresholds"},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "Max Power (W)"},
+                      {"type": "input", "ref": "settings.max_power_w", "input": "number"}
+                    ]},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "Auto Cut-off"},
+                      {"type": "toggle", "ref": "settings.auto_cutoff"}
+                    ]},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "Sample rate (Hz)"},
+                      {"type": "input", "ref": "settings.sample_hz", "input": "number"}
+                    ]},
+                  {"classes": "labeled", "css": "justify-content:end; margin-top:.25rem;", "layout": [
+                      {"type": "savebutton", "ref": "settings", "title": "save", "icon": "save"}
+                    ]}
+                ]},
+              {"classes": "panel", "css": "width:22rem; background:#0b1429; border:1px solid #223457;", "layout": [
+                  {"classes": "title", "format": "Network"},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "DHCP"},
+                      {"type": "toggle", "ref": "network_settings.dhcp"}
+                    ]},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "IP"},
+                      {"type": "input", "ref": "network_settings.ip_address"}
+                    ]},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "GW"},
+                      {"type": "input", "ref": "network_settings.gw_address"}
+                    ]},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "Mask"},
+                      {"type": "input", "ref": "network_settings.netmask"}
+                    ]},
+                  {"classes": "labeled", "css": "justify-content:end; margin-top:.25rem;", "layout": [
+                      {"type": "savebutton", "ref": "network_settings", "title": "save", "icon": "save"}
+                    ]}
+                ]}
+            ]}
+        ]},
+      {"title": "⬆ Firmware & Logs", "icon": "import", "level": 3, "css": "padding:.75rem; display:flex; flex-direction:column; gap:.75rem;", "layout": [
+          {"classes": "container", "css": "display:flex; gap:.75rem; flex-wrap:wrap;", "layout": [
+              {"classes": "panel", "css": "width:24rem; background:#0b1429; border:1px solid #223457;", "layout": [
+                  {"classes": "title", "format": "Firmware Update"},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "Current FW"},
+                      {"format": "${info.fw}"}
+                    ]},
+                  {"classes": "labeled", "layout": [
+                      {"classes": "label", "format": "Upload .bin"},
+                      {"type": "ota", "ref": "firmware_update", "title": "select .bin", "icon": "ellipsis-horizontal", "accept": ".bin"}
+                    ]}
+                ]},
+              {"classes": "panel", "css": "flex:1 1 24rem; min-width:18rem; background:#0b1429; border:1px solid #223457;", "layout": [
+                  {"classes": "title", "format": "System Log"},
+                  {"format": "${events.log}", "css": "white-space:pre-wrap; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; color:#9bdcff;"},
+                  {"classes": "labeled", "css": "justify-content:end; gap:.5rem;", "layout": [
+                      {"type": "action", "ref": "save_event", "title": "mark", "icon": "bookmark"},
+                      {"type": "action", "ref": "reboot", "title": "reboot", "icon": "reload"},
+                      {"type": "action", "ref": "reformat", "title": "format", "icon": "trash"}
+                    ]}
+                ]}
+            ]}
+        ]}
+    ], 
+    "login": {"title": "login", "icon": "user", "level": 0, "css": "padding: 0.75rem; gap: 0.5rem; min-height: 2rem; display: flex; flex-direction: column; flex-grow: 1;", "layout": [
+        {"classes": "container", "css": "flex-grow: 1; justify-content: center;", "layout": [
+            {"classes": "container", "css": "padding-left: 6.25rem; padding-top: 4.5rem; color: #ffffff; background: #2563EB; flex-direction: column; gap: 0.5rem; flex-grow: 1; flex-wrap: wrap;", "layout": [
+                {"classes": "container", "css": "align-items: start; gap: 0.5rem; flex-grow: 1;", "layout": [
+                    {"type": "image", "image": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<svg viewBox=\"0 0 600 150\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect x=\"0\" y=\"0\" width=\"600\" height=\"150\" rx=\"20\" ry=\"20\" style=\"stroke: none; fill: #e1e5e9;\"/>\n  <text style=\"fill: #94A3B8; font-family: Arial, sans-serif; font-size: 92px;dominant-baseline: middle; text-anchor: middle; \" x=\"50%\" y=\"50%\">my logo</text>\n</svg>", "css": "flex: 0 0 auto; width: 8.5rem; height: 4rem; flex-grow: 1;"}
+                  ]},
+                {"classes": "container", "css": "gap: 0.5rem; flex-wrap: wrap;flex-grow: 1;", "layout": [
+                    {"classes": "container", "css": "flex: 0 0 auto; width: 14rem; align-items: start; flex-direction: column; gap: 0.5rem; flex-wrap: wrap;", "layout": [
+                        {"format": "Welcome!", "css": "font-weight: 800; font-size: 4rem;"},
+                        {"format": "Here is a space where you might want to describe the essence of your service or any other information you consider important for users to read before logging in.", "css": "flex: 0 0 auto; width: 25rem; font-weight: 400; font-size: 1.25rem;"}
+                      ]}
+                  ]}
+              ]},
+            {"classes": "container", "css": "background: #ffffff; flex-direction: column; justify-content: center; align-items: center; gap: 0.5rem; flex-grow: 1; flex-wrap: wrap;", "layout": [
+                {"classes": "container", "css": "margin-top: 8rem; flex: 0 0 auto; width: 18rem; flex-direction: column; gap: 0.5rem; flex-wrap: wrap;", "layout": [
+                    {"format": "Sign in", "css": "font-size: 2rem; font-weight: 800; margin-bottom: 1rem;"},
+                    {"format": "Username", "classes": "title"},
+                    {"type": "input", "input": "text", "ref": "login.username"},
+                    {"format": "Password", "classes": "title"},
+                    {"type": "input", "input": "password", "ref": "login.password"},
+                    {"type": "loginbutton", "title": "Sign In", "icon": "sign-in", "ref": "login", "css": "margin-top: 1rem;"}
+                  ]}
+              ]}
+          ]}
+      ]}
+  }
+}
