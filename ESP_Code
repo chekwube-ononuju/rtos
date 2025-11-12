@@ -1,0 +1,65 @@
+
+//this code uploads to our database on supabase a continous 42 
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include "arduino_secrets.h"
+
+char ssid[] = SECRET_SSID;
+char pass[] = SECRET_PASS;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(ssid, pass);
+
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+  Serial.println("\nConnected!");
+}
+
+void loop() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+
+    http.begin(SUPABASE_URL);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("apikey", SUPABASE_KEY);
+    http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
+
+    String jsonBody = "{\"sensor_name\":\"esp32\",\"sensor_value\":42}";
+    int httpCode = http.POST(jsonBody);
+
+    Serial.print("Response Code: ");
+    Serial.println(httpCode);
+
+    Serial.println(http.getString()); // prints response from server
+    http.end();
+  }
+
+  delay(5000); // send every 5 seconds
+}
+
+
+// This code reads in from uart
+void setup() {
+  Serial.begin(115200);
+  delay(2000);
+  
+  Serial.println("\n=== Reading Text Strings from STM32 ===\n");
+  
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);
+}
+
+void loop() {
+  // Read until newline character
+  if (Serial2.available()) {
+    String received = Serial2.readStringUntil('\n');
+    
+    Serial.print("[");
+    Serial.print(millis() / 1000.0, 3);
+    Serial.print("s] ");
+    Serial.println(received);
+  }
+}
