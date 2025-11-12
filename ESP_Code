@@ -1,5 +1,3 @@
-
-//this code uploads to our database on supabase a continous 42 
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "arduino_secrets.h"
@@ -8,58 +6,89 @@ char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
 
 void setup() {
-  Serial.begin(115200);
+  // Initialize serial monitors
+  Serial.begin(115200);  // USB serial for debugging
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);  // UART2 for STM32 communication
+  
+  delay(2000);
+  
+  Serial.println("\n=== ESP32 UART to Supabase Bridge ===");
+  Serial.println("Connecting to WiFi...");
+  
+  // Connect to WiFi
   WiFi.begin(ssid, pass);
-
-  Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
   }
-  Serial.println("\nConnected!");
+  
+  Serial.println("\nWiFi Connected!");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+  Serial.println("\nWaiting for UART data from STM32...\n");
 }
 
 void loop() {
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-
-    http.begin(SUPABASE_URL);
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("apikey", SUPABASE_KEY);
-    http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
-
-    String jsonBody = "{\"sensor_name\":\"esp32\",\"sensor_value\":42}";
-    int httpCode = http.POST(jsonBody);
-
-    Serial.print("Response Code: ");
-    Serial.println(httpCode);
-
-    Serial.println(http.getString()); // prints response from server
-    http.end();
-  }
-
-  delay(5000); // send every 5 seconds
-}
-
-
-// This code reads in from uart
-void setup() {
-  Serial.begin(115200);
-  delay(2000);
-  
-  Serial.println("\n=== Reading Text Strings from STM32 ===\n");
-  
-  Serial2.begin(115200, SERIAL_8N1, 16, 17);
-}
-
-void loop() {
-  // Read until newline character
+  // Check if data is available from STM32 via UART
   if (Serial2.available()) {
+    // Read the incoming string until newline
     String received = Serial2.readStringUntil('\n');
+    received.trim();  // Remove any whitespace/newlines
     
+    // Log what was received
     Serial.print("[");
     Serial.print(millis() / 1000.0, 3);
-    Serial.print("s] ");
+    Serial.print("s] Received: ");
     Serial.println(received);
+    
+    // Only send to Supabase if WiFi is connected and we have data
+    if (WiFi.status() == WL_CONNECTED && received.length() > 0) {
+      sendToSupabase(received);
+    } else if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("WiFi disconnected! Attempting to reconnect...");
+      WiFi.reconnect();
+    }
   }
+}
+
+void sendToSupabase(String sensorValue) {
+  HTTPClient http;
+  
+  Serial.print("Sending to Supabase: ");
+  Serial.println(sensorValue);
+  
+  http.begin(SUPABASE_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("apikey", SUPABASE_KEY);
+  http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
+  
+  // Create JSON body with the received value
+  String jsonBody = "{\"sensor_name\":\"esp32\",\"sensor_value\":\"" + sensorValue + "\"}";
+  
+  // If you need to send numeric values instead of strings, you can parse it:
+  // float numValue = sensorValue.toFloat();
+  // String jsonBody = "{\"sensor_name\":\"esp32\",\"sensor_value\":" + String(numValue) + "}";
+  
+  int httpCode = http.POST(jsonBody);
+  
+  Serial.print("HTTP Response Code: ");
+  Serial.println(httpCode);
+  
+  if (httpCode > 0) {
+    String response = http.getString();
+    Serial.print("Server Response: ");
+    Serial.println(response);
+    
+    if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
+      Serial.println("✓ Data successfully uploaded to Supabase!");
+    } else {
+      Serial.println("✗ Upload failed!");
+    }
+  } else {
+    Serial.print("HTTP Error: ");
+    Serial.println(http.errorToString(httpCode));
+  }
+  
+  http.end();
+  Serial.println("----------------------------\n");
 }
