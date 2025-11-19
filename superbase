@@ -1,2 +1,1 @@
-#define SUPABASE_URL     "https://wzxesvppkbwecmtgvmkc.supabase.co/rest/v1/sensor_data" 
-#define SUPABASE_KEY     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6eGVzdnBwa2J3ZWNtdGd2bWtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4MDQ4NTksImV4cCI6MjA3ODM4MDg1OX0.9gF5Bq0PXc1g3NJqk5Go_7061HPKwWKAFAhSNBjBir0"
+
