@@ -1,0 +1,619 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <Wire.h>
+// Install via Library Manager: "Adafruit INA219"
+#include <Adafruit_INA219.h>
+
+// =======================
+// Wi-Fi credentials
+// =======================
+const char* WIFI_SSID     = "Park East";
+const char* WIFI_PASSWORD = "CatchLionWhippet";
+
+// =======================
+// Supabase config
+// =======================
+const char* SUPABASE_URL      = "https://wzxesvppkbwecmtgvmkc.supabase.co";
+const char* SUPABASE_API_PATH = "/rest/v1/sensor_data";
+const char* SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6eGVzdnBwa2J3ZWNtdGd2bWtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4MDQ4NTksImV4cCI6MjA3ODM4MDg1OX0.9gF5Bq0PXc1g3NJqk5Go_7061HPKwWKAFAhSNBjBir0";
+
+// =======================
+// Hardware
+// =======================
+
+// On ESP32-CAM: flash LED is GPIO 4
+// On generic ESP32 dev board, you can use 2 or another LED pin.
+const int LED_PIN = 4;
+
+WebServer server(80);
+WiFiClientSecure supabaseClient;
+Adafruit_INA219 ina219;
+
+// Last reading (used by dashboard if you want a local API later)
+float lastBusVoltage   = 0.0f;
+float lastShuntVoltage = 0.0f;
+float lastCurrent      = 0.0f;
+float lastPower        = 0.0f;
+bool  ledState         = false;
+
+// How often to log to Supabase (ms)
+const unsigned long LOG_INTERVAL_MS = 1000;
+unsigned long lastLogTime = 0;
+
+// =======================
+// HTML Dashboard Page
+// =======================
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Home Energy Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #020617;
+      --card: #020617;
+      --accent: #22c55e;
+      --accent-soft: rgba(34, 197, 94, 0.15);
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0, #020617 55%, #000 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px;
+    }
+    .layout {
+      width: 100%;
+      max-width: 1120px;
+    }
+    header {
+      margin-bottom: 16px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    header h1 span.pill {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    header p {
+      margin: 6px 0 0;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr);
+      gap: 16px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 16px 18px;
+      box-shadow: 0 18px 45px rgba(15,23,42,0.7);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .card-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .metric {
+      background: radial-gradient(circle at top left, #1f2937 0, #020617 60%);
+      border-radius: 12px;
+      padding: 10px 12px;
+      border: 1px solid #111827;
+    }
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .metric-value {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 1.1rem;
+    }
+    .metric-unit {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+    .metric-footnote {
+      font-size: 0.7rem;
+      color: var(--accent);
+      margin-top: 2px;
+    }
+    canvas {
+      width: 100% !important;
+      height: 260px !important;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #111827;
+    }
+    .status-chip {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(34,197,94,0.25);
+    }
+    button {
+      border: none;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: #111827;
+      color: var(--text-main);
+      border: 1px solid #1f2937;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button span.dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ef4444;
+    }
+    button.on span.dot {
+      background: #22c55e;
+    }
+    button:hover {
+      background: #020617;
+    }
+    .ts {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-align: right;
+    }
+    @media(max-width: 820px) {
+      .grid { grid-template-columns: 1fr; }
+      body { padding: 16px; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <h1>
+        Smart Home Energy Monitor
+        <span class="pill">STM32L4 RTOS + ESP32</span>
+      </h1>
+      <p>Live wattage, currents, and history streamed from Supabase.</p>
+    </header>
+
+    <div class="grid">
+      <!-- Live metrics card -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Live INA219 Metrics</div>
+            <div class="card-subtitle">Most recent sample from Supabase</div>
+          </div>
+          <span class="badge" id="sampleBadge">No data</span>
+        </div>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Bus Voltage</div>
+            <div class="metric-value">
+              <span id="bus_voltage_1_db">--</span>
+              <span class="metric-unit">V</span>
+            </div>
+            <div class="metric-footnote">Raw bus measurement</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Shunt Voltage</div>
+            <div class="metric-value">
+              <span id="shunt_voltage_1_db">--</span>
+              <span class="metric-unit">mV</span>
+            </div>
+            <div class="metric-footnote">Across sense resistor</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Current</div>
+            <div class="metric-value">
+              <span id="current_1_db">--</span>
+              <span class="metric-unit">A</span>
+            </div>
+            <div class="metric-footnote">Instantaneous load current</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Power</div>
+            <div class="metric-value">
+              <span id="power_1_db">--</span>
+              <span class="metric-unit">W</span>
+            </div>
+            <div class="metric-footnote">Computed bus × current</div>
+          </div>
+        </div>
+
+        <div class="status-row">
+          <div class="status-chip">
+            <span class="status-dot"></span>
+            <span id="statusText">Streaming from Supabase</span>
+          </div>
+          <button id="ledBtn" onclick="toggleLed()">
+            <span class="dot"></span>
+            <span id="ledLabel">Toggle Load</span>
+          </button>
+        </div>
+        <div class="ts" id="lastUpdatedTs">Last updated: --</div>
+      </section>
+
+      <!-- History graph card -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Power History</div>
+            <div class="card-subtitle">Last N samples from Supabase</div>
+          </div>
+          <span class="badge">Power (W)</span>
+        </div>
+        <canvas id="powerChart"></canvas>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://wzxesvppkbwecmtgvmkc.supabase.co';
+    const SUPABASE_KEY =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6eGVzdnBwa2J3ZWNtdGd2bWtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4MDQ4NTksImV4cCI6MjA3ODM4MDg1OX0.9gF5Bq0PXc1g3NJqk5Go_7061HPKwWKAFAhSNBjBir0';
+
+    let powerChart;
+
+    async function fetchLatestSample() {
+      const url =
+        SUPABASE_URL +
+        '/rest/v1/sensor_data' +
+        '?select=id,created_at,bus_voltage_1,shunt_voltage_1,current_1,power_1' +
+        '&order=created_at.desc' +
+        '&limit=1';
+
+      const res = await fetch(url, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: 'Bearer ' + SUPABASE_KEY,
+        },
+      });
+
+      if (!res.ok) {
+        console.error('Supabase latest error', await res.text());
+        return;
+      }
+
+      const rows = await res.json();
+      if (!rows.length) return;
+      const row = rows[0];
+
+      document.getElementById('bus_voltage_1_db').textContent =
+        row.bus_voltage_1?.toFixed?.(3) ?? row.bus_voltage_1 ?? '--';
+      document.getElementById('shunt_voltage_1_db').textContent =
+        row.shunt_voltage_1?.toFixed?.(6) ?? row.shunt_voltage_1 ?? '--';
+      document.getElementById('current_1_db').textContent =
+        row.current_1?.toFixed?.(3) ?? row.current_1 ?? '--';
+      document.getElementById('power_1_db').textContent =
+        row.power_1?.toFixed?.(3) ?? row.power_1 ?? '--';
+
+      document.getElementById('sampleBadge').textContent = 'id ' + row.id;
+
+      const tsElem = document.getElementById('lastUpdatedTs');
+      tsElem.textContent = 'Last updated: ' + row.created_at;
+    }
+
+    async function fetchHistory() {
+      const url =
+        SUPABASE_URL +
+        '/rest/v1/sensor_data' +
+        '?select=created_at,power_1' +
+        '&order=created_at.desc' +
+        '&limit=60';
+
+      const res = await fetch(url, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: 'Bearer ' + SUPABASE_KEY,
+        },
+      });
+
+      if (!res.ok) {
+        console.error('Supabase history error', await res.text());
+        return;
+      }
+
+      let rows = await res.json();
+      if (!rows.length) return;
+
+      // Newest first; chart wants oldest first
+      rows = rows.reverse();
+
+      const labels = rows.map(r => r.created_at);
+      const values = rows.map(r => r.power_1);
+
+      if (!powerChart) {
+        const ctx = document.getElementById('powerChart').getContext('2d');
+        powerChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Power (W)',
+              data: values,
+              borderWidth: 2,
+              tension: 0.25,
+            }],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+            },
+            scales: {
+              x: {
+                ticks: { maxTicksLimit: 5, color: '#9ca3af' },
+                grid: { color: '#020617' },
+              },
+              y: {
+                ticks: { color: '#9ca3af' },
+                grid: { color: '#020617' },
+              },
+            },
+          },
+        });
+      } else {
+        powerChart.data.labels = labels;
+        powerChart.data.datasets[0].data = values;
+        powerChart.update();
+      }
+    }
+
+    function toggleLed() {
+      fetch('/toggle', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          const btn = document.getElementById('ledBtn');
+          const dot = btn.querySelector('.dot');
+          const label = document.getElementById('ledLabel');
+          btn.classList.toggle('on', data.led);
+          label.textContent = data.led ? 'Turn OFF' : 'Turn ON';
+        })
+        .catch(err => console.error('LED toggle error', err));
+    }
+
+    async function refreshAll() {
+      try {
+        await Promise.all([fetchLatestSample(), fetchHistory()]);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    setInterval(refreshAll, 3000);
+    window.onload = refreshAll;
+  </script>
+</body>
+</html>
+)rawliteral";
+
+// =======================
+// Utility: log reading to Supabase
+// =======================
+
+void logToSupabase(float busV, float shuntV, float current, float power) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient https;
+
+  String url = String(SUPABASE_URL) + SUPABASE_API_PATH;
+
+  // JSON body
+  String payload = "{";
+  payload += "\"bus_voltage_1\":" + String(busV, 6) + ",";
+  payload += "\"shunt_voltage_1\":" + String(shuntV, 6) + ",";
+  payload += "\"current_1\":" + String(current, 6) + ",";
+  payload += "\"power_1\":" + String(power, 6);
+  payload += "}";
+
+  https.begin(supabaseClient, url);
+  https.addHeader("Content-Type", "application/json");
+  https.addHeader("apikey", SUPABASE_ANON_KEY);
+  https.addHeader("Authorization", String("Bearer ") + SUPABASE_ANON_KEY);
+  https.addHeader("Prefer", "return=minimal");
+
+  int code = https.POST(payload);
+  if (code < 200 || code >= 300) {
+    Serial.print("Supabase POST failed: ");
+    Serial.println(code);
+    String resp = https.getString();
+    Serial.println(resp);
+  } else {
+    Serial.print("Logged to Supabase, HTTP ");
+    Serial.println(code);
+  }
+
+  https.end();
+}
+
+// =======================
+// Sensor read
+//  (For final project, replace this with data coming from STM32L4 RTOS)
+// =======================
+
+bool readSensor(float &busV, float &shuntV, float &current, float &power) {
+  // Direct INA219 read
+  // If you don't have it wired yet, you can temporarily simulate values
+  busV   = ina219.getBusVoltage_V();
+  shuntV = ina219.getShuntVoltage_mV();
+  current = ina219.getCurrent_mA() / 1000.0f; // A
+  power   = ina219.getPower_mW() / 1000.0f;   // W
+
+  // Simple sanity check
+  if (isnan(busV) || isnan(current)) return false;
+  return true;
+}
+
+// =======================
+// HTTP handlers
+// =======================
+void handleRoot() {
+  server.send_P(200, "text/html", index_html);
+}
+
+void handleToggle() {
+  ledState = !ledState;
+  digitalWrite(LED_PIN, ledState ? HIGH : LOW);
+
+  String json = "{";
+  json += "\"led\":";
+  json += (ledState ? "true" : "false");
+  json += "}";
+
+  server.send(200, "application/json", json);
+}
+
+void handleNotFound() {
+  server.send(404, "text/plain", "Not found");
+}
+
+// =======================
+// Setup & Loop
+// =======================
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+
+  Serial.println();
+  Serial.println("Smart Home Energy Monitor - ESP32 side");
+
+  // INA219 init
+  Wire.begin();  // default I2C pins; adjust if needed
+  if (!ina219.begin()) {
+    Serial.println("Failed to find INA219 chip; check wiring.");
+  } else {
+    Serial.println("INA219 initialized.");
+  }
+
+  // Wi-Fi
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.println("WiFi connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  // Supabase TLS (skip certificate check for simplicity)
+  supabaseClient.setInsecure();
+
+  // Web routes
+  server.on("/", handleRoot);
+  server.on("/toggle", HTTP_POST, handleToggle);
+  server.onNotFound(handleNotFound);
+
+  server.begin();
+  Serial.println("HTTP server started");
+
+  lastLogTime = millis();
+}
+
+void loop() {
+  server.handleClient();
+
+  unsigned long now = millis();
+  if (now - lastLogTime >= LOG_INTERVAL_MS) {
+    lastLogTime = now;
+
+    float busV, shuntV, current, power;
+    if (readSensor(busV, shuntV, current, power)) {
+      lastBusVoltage   = busV;
+      lastShuntVoltage = shuntV;
+      lastCurrent      = current;
+      lastPower        = power;
+
+      Serial.print("Sample -> Vbus=");
+      Serial.print(busV);
+      Serial.print(" V, I=");
+      Serial.print(current);
+      Serial.print(" A, P=");
+      Serial.print(power);
+      Serial.println(" W");
+
+      logToSupabase(busV, shuntV, current, power);
+    } else {
+      Serial.println("Sensor read failed");
+    }
+  }
+}
