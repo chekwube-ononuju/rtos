@@ -1,0 +1,181 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+// =======================
+// Wi-Fi credentials
+// =======================
+const char* ssid     = "SSID";
+const char* password = "SECRET_PASS";
+
+// Web server on port 80 (HTTP)
+WebServer server(80);
+
+// LED pin (built-in LED is often GPIO 2 on ESP32 dev boards)
+const int LED_PIN = 2;
+bool ledState = false;
+
+// =======================
+// HTML Dashboard Page
+// =======================
+// Stored in flash memory (PROGMEM) to save RAM
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 Web Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #ffffff;
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      text-align: center;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    .value {
+      font-size: 2rem;
+      margin: 10px 0;
+    }
+    button {
+      border: none;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>ESP32 Web Dashboard</h2>
+    <p class="value">🌡 Temp: <span id="temp">--</span> °C</p>
+    <p class="value">💧 Humidity: <span id="hum">--</span> %</p>
+    <p class="value">💡 LED: <span id="ledState">--</span></p>
+    <button id="ledBtn" onclick="toggleLed()">Toggle LED</button>
+  </div>
+
+  <script>
+    // Fetch sensor & LED data from /data
+    function getData() {
+      fetch('/data')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('temp').textContent = data.temperature.toFixed(1);
+          document.getElementById('hum').textContent = data.humidity.toFixed(1);
+          document.getElementById('ledState').textContent = data.led ? 'ON' : 'OFF';
+          document.getElementById('ledBtn').textContent = data.led ? 'Turn OFF' : 'Turn ON';
+        })
+        .catch(error => console.error('Error getting data:', error));
+    }
+
+    // Ask the ESP32 to toggle the LED
+    function toggleLed() {
+      fetch('/toggle', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('ledState').textContent = data.led ? 'ON' : 'OFF';
+          document.getElementById('ledBtn').textContent = data.led ? 'Turn OFF' : 'Turn ON';
+        })
+        .catch(error => console.error('Error toggling LED:', error));
+    }
+
+    // Update data every second
+    setInterval(getData, 1000);
+    window.onload = getData;
+  </script>
+</body>
+</html>
+)rawliteral";
+
+// =======================
+// HTTP Handlers
+// =======================
+
+void handleRoot() {
+  server.send_P(200, "text/html", index_html);
+}
+
+void handleData() {
+  // For now, simulate some sensor data.
+  // Replace these with your real sensor readings later.
+  float temp = 25.0 + (millis() % 1000) / 100.0;  // ~25.0 to ~34.9
+  float hum  = 50.0 + (millis() % 500) / 100.0;   // ~50.0 to ~54.9
+
+  String json = "{";
+  json += "\"temperature\":" + String(temp, 1) + ",";
+  json += "\"humidity\":" + String(hum, 1) + ",";
+  json += "\"led\":"; 
+  json += (ledState ? "true" : "false");
+  json += "}";
+
+  server.send(200, "application/json", json);
+}
+
+void handleToggle() {
+  ledState = !ledState;
+  digitalWrite(LED_PIN, ledState ? HIGH : LOW);
+
+  String json = "{";
+  json += "\"led\":"; 
+  json += (ledState ? "true" : "false");
+  json += "}";
+
+  server.send(200, "application/json", json);
+}
+
+void handleNotFound() {
+  server.send(404, "text/plain", "Not found");
+}
+
+// =======================
+// Setup & Loop
+// =======================
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+
+  Serial.println();
+  Serial.println("Starting ESP32 Web Dashboard...");
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.println("WiFi connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  // Route handlers
+  server.on("/", handleRoot);
+  server.on("/data", HTTP_GET, handleData);
+  server.on("/toggle", HTTP_POST, handleToggle);
+  server.onNotFound(handleNotFound);
+
+  // Start server
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+void loop() {
+  server.handleClient();
+}
