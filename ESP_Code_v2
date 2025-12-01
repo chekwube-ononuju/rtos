@@ -5,8 +5,8 @@
 // Wi-Fi credentials
 // =======================
 // TODO: put your hotspot / router name + password here
-const char* ssid     = "Park East";
-const char* password = "CatchLionWhippet";
+const char* ssid     = "SSID";
+const char* password = "PASSWORD";
 
 // HTTP server on port 80
 WebServer server(80);
