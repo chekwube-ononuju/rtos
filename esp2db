@@ -1,0 +1,92 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include "arduino_secrets.h"
+
+char ssid[] = SECRET_SSID;
+char pass[] = SECRET_PASS;
+
+void setup() {
+  Serial.begin(115200);
+  delay(2000);
+  
+  Serial.println("\n=== Supabase Connection Test ===");
+  Serial.println("Connecting to WiFi...");
+  
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+  
+  Serial.println("\nWiFi Connected!");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+  
+  // TEST SUPABASE CONNECTION
+  testSupabaseConnection();
+}
+
+void loop() {
+  // Nothing - just run the test once
+}
+
+void testSupabaseConnection() {
+  Serial.println("\n=== Testing Supabase Connection ===");
+  
+  HTTPClient http;
+  
+  http.begin(SUPABASE_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("apikey", SUPABASE_KEY);
+  http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
+  
+  // Test data
+  String jsonBody = "{";
+  jsonBody += "\"bus_voltage_1\":5.123,";
+  jsonBody += "\"shunt_voltage_1\":0.000456,";
+  jsonBody += "\"current_1\":0.789,";
+  jsonBody += "\"power_1\":4.012,";
+  jsonBody += "\"bus_voltage_2\":12.345,";
+  jsonBody += "\"shunt_voltage_2\":0.000789,";
+  jsonBody += "\"current_2\":1.234,";
+  jsonBody += "\"power_2\":15.234";
+  jsonBody += "}";
+  
+  Serial.println("Sending test data...");
+  Serial.print("URL: ");
+  Serial.println(SUPABASE_URL);
+  Serial.print("JSON: ");
+  Serial.println(jsonBody);
+  
+  int httpCode = http.POST(jsonBody);
+  
+  Serial.print("\nHTTP Response Code: ");
+  Serial.println(httpCode);
+  
+  if (httpCode > 0) {
+    String response = http.getString();
+    Serial.print("Server Response: ");
+    Serial.println(response);
+    
+    if (httpCode == 201) {
+      Serial.println("\n✓✓✓ SUCCESS! Supabase connection works! ✓✓✓");
+    } else if (httpCode == 200) {
+      Serial.println("\n✓ Connection OK, but check table schema");
+    } else if (httpCode == 400) {
+      Serial.println("\n✗ Bad Request - Check table columns match JSON fields");
+    } else if (httpCode == 401) {
+      Serial.println("\n✗ Unauthorized - Check your SUPABASE_KEY");
+    } else if (httpCode == 404) {
+      Serial.println("\n✗ Not Found - Check your table name in URL");
+    } else {
+      Serial.println("\n✗ Unexpected response code");
+    }
+  } else {
+    Serial.print("\n✗ HTTP Error: ");
+    Serial.println(http.errorToString(httpCode));
+  }
+  
+  http.end();
+  
+  Serial.println("\n=== Test Complete ===");
+}
