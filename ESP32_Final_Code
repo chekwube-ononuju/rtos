@@ -1,0 +1,111 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include "arduino_secrets.h"
+
+char ssid[] = SECRET_SSID;
+char pass[] = SECRET_PASS;
+
+struct SensorData {
+  float bus;
+  float shunt;
+  float current;
+  float power;
+  bool valid;
+};
+
+SensorData sensor1 = {0,0,0,0,false};
+SensorData sensor2 = {0,0,0,0,false};
+
+void setup() {
+  Serial.begin(115200);
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);
+
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+}
+
+void loop() {
+
+  if (Serial2.available()) {
+    String line = Serial2.readStringUntil('\n');
+    line.trim();
+
+    if (line.startsWith("AVG INA1")) {
+      sensor1 = parseSensor(line);
+      Serial.println("Parsed INA1 successfully");
+    }
+
+    else if (line.startsWith("AVG INA2")) {
+      sensor2 = parseSensor(line);
+      Serial.println("Parsed INA2 successfully");
+    }
+
+    // When BOTH sensors have fresh values → upload together
+    if (sensor1.valid && sensor2.valid) {
+      sendBothToSupabase(sensor1, sensor2);
+
+      // reset valid flags so next pair is uploaded
+      sensor1.valid = false;
+      sensor2.valid = false;
+    }
+  }
+}
+
+SensorData parseSensor(String line) {
+  SensorData d = {0,0,0,0,false};
+
+  int b = line.indexOf("Bus=");
+  int b2 = line.indexOf(" V", b);
+  if (b < 0) return d;
+  d.bus = line.substring(b + 4, b2).toFloat();
+
+  int s = line.indexOf("Shunt=");
+  int s2 = line.indexOf(" V", s);
+  if (s < 0) return d;
+  d.shunt = line.substring(s + 6, s2).toFloat();
+
+  int c = line.indexOf("Current=");
+  int c2 = line.indexOf(" A", c);
+  if (c < 0) return d;
+  d.current = line.substring(c + 8, c2).toFloat();
+
+  int p = line.indexOf("Power=");
+  int p2 = line.indexOf(" W", p);
+  if (p < 0) return d;
+  d.power = line.substring(p + 6, p2).toFloat();
+
+  d.valid = true;
+  return d;
+}
+
+void sendBothToSupabase(SensorData s1, SensorData s2) {
+  HTTPClient http;
+  http.begin(SUPABASE_URL);
+
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("apikey", SUPABASE_KEY);
+  http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
+
+  String json = "{";
+
+  json += "\"bus_voltage_1\":" + String(s1.bus, 5) + ",";
+  json += "\"shunt_voltage_1\":" + String(s1.shunt, 6) + ",";
+  json += "\"current_1\":" + String(s1.current, 6) + ",";
+  json += "\"power_1\":" + String(s1.power, 6) + ",";
+
+  json += "\"bus_voltage_2\":" + String(s2.bus, 5) + ",";
+  json += "\"shunt_voltage_2\":" + String(s2.shunt, 6) + ",";
+  json += "\"current_2\":" + String(s2.current, 6) + ",";
+  json += "\"power_2\":" + String(s2.power, 6);
+
+  json += "}";
+
+  int code = http.POST(json);
+
+  Serial.print("HTTP: ");
+  Serial.println(code);
+  Serial.println(http.getString());
+  http.end();
+}
