@@ -1,0 +1,189 @@
+#include <WiFi.h>           // Library for Wi-Fi functionality on ESP32
+#include <HTTPClient.h>     // Library for making HTTP requests (GET, POST, etc.)
+#include "arduino_secrets.h" // Header file where you store your Wi-Fi + API secrets (SSID, password, keys)
+
+// These two variables come from arduino_secrets.h
+// They should be defined there as:
+//   #define SECRET_SSID "your_wifi_name"
+//   #define SECRET_PASS "your_wifi_password"
+char ssid[] = SECRET_SSID;  // Wi-Fi network name
+char pass[] = SECRET_PASS;  // Wi-Fi network password
+
+// Define a struct to hold all sensor values from one INA219 (or similar) reading
+struct SensorData {
+  float bus;     // Bus voltage reading (V)
+  float shunt;   // Shunt voltage reading (V)
+  float current; // Current reading (A)
+  float power;   // Power reading (W)
+  bool valid;    // Flag: true if this struct currently holds a "fresh" parsed reading
+};
+
+// Create two global SensorData instances: one for each sensor (INA1 and INA2)
+SensorData sensor1 = {0, 0, 0, 0, false}; // Initialize all floats to 0, valid = false
+SensorData sensor2 = {0, 0, 0, 0, false}; // Same for second sensor
+
+void setup() {
+  Serial.begin(115200);  // Start USB serial for debugging at 115200 baud
+
+  // Start Serial2 (second hardware UART on ESP32)
+  // Parameters:
+  //   115200 baud, SERIAL_8N1 = 8 data bits, no parity, 1 stop bit
+  //   RX pin = 16, TX pin = 17
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);
+
+  // Connect to Wi-Fi using the SSID and password
+  WiFi.begin(ssid, pass);
+
+  // Keep looping until the ESP32 successfully connects to the Wi-Fi network
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);  // Wait half a second before checking again
+  }
+
+  // At this point, Wi-Fi is connected (you could print WiFi.localIP() here if you want)
+}
+
+void loop() {
+
+  // Check if there is any data available on Serial2 (coming from your other device)
+  if (Serial2.available()) {
+    // Read a line from Serial2 until the newline character '\n'
+    String line = Serial2.readStringUntil('\n');
+
+    // Remove leading/trailing whitespace, including '\r'
+    line.trim();
+
+    // Example expected line (depending on your other device):
+    // "AVG INA1 Bus=12.345 V Shunt=0.001234 V Current=1.234567 A Power=12.345678 W"
+
+    // If this line is for INA1 (first sensor)
+    if (line.startsWith("AVG INA1")) {
+      // Parse this line into a SensorData struct
+      sensor1 = parseSensor(line);
+
+      // If parsing succeeded, sensor1.valid will be true
+      Serial.println("Parsed INA1 successfully");
+    }
+
+    // If this line is for INA2 (second sensor)
+    else if (line.startsWith("AVG INA2")) {
+      // Parse this line into a SensorData struct
+      sensor2 = parseSensor(line);
+
+      // If parsing succeeded, sensor2.valid will be true
+      Serial.println("Parsed INA2 successfully");
+    }
+
+    // If BOTH sensors have been updated and marked valid,
+    // we send their values together as one JSON row to Supabase.
+    if (sensor1.valid && sensor2.valid) {
+      // Send both sensor readings in a single HTTP POST request
+      sendBothToSupabase(sensor1, sensor2);
+
+      // After uploading, clear the valid flags
+      // This ensures we wait for a NEW pair of readings next time
+      sensor1.valid = false;
+      sensor2.valid = false;
+    }
+  }
+
+  // If no Serial2 data is available, loop() will just keep checking
+}
+
+// This function parses one sensor line and returns a SensorData struct
+// If it fails at any step (can't find one of the fields), it returns .valid = false
+SensorData parseSensor(String line) {
+  // Start with default struct: all zeros and valid = false
+  SensorData d = {0, 0, 0, 0, false};
+
+  // ------------- Parse Bus Voltage -------------
+  // Find the index where "Bus=" appears in the line
+  int b = line.indexOf("Bus=");
+  // Find the " V" that comes after Bus= (the end of the bus voltage number)
+  int b2 = line.indexOf(" V", b);
+
+  // If we didn't find "Bus=", return invalid struct
+  if (b < 0) return d;
+
+  // Extract the substring between "Bus=" and " V" and convert to float
+  d.bus = line.substring(b + 4, b2).toFloat(); // +4 skips the characters 'B','u','s','='
+
+  // ------------- Parse Shunt Voltage -------------
+  int s = line.indexOf("Shunt=");
+  int s2 = line.indexOf(" V", s);
+
+  if (s < 0) return d; // If "Shunt=" not found, parsing fails
+  d.shunt = line.substring(s + 6, s2).toFloat(); // +6 skips 'S','h','u','n','t','='
+
+  // ------------- Parse Current -------------
+  int c = line.indexOf("Current=");
+  int c2 = line.indexOf(" A", c);
+
+  if (c < 0) return d; // If "Current=" not found, parsing fails
+  d.current = line.substring(c + 8, c2).toFloat(); // +8 skips 'C','u','r','r','e','n','t','='
+
+  // ------------- Parse Power -------------
+  int p = line.indexOf("Power=");
+  int p2 = line.indexOf(" W", p);
+
+  if (p < 0) return d; // If "Power=" not found, parsing fails
+  d.power = line.substring(p + 6, p2).toFloat(); // +6 skips 'P','o','w','e','r','='
+
+  // If we made it here, all fields were found and parsed correctly
+  d.valid = true;
+
+  // Return the filled struct
+  return d;
+}
+
+// This function sends both sensor readings (s1 and s2) to Supabase
+// as a single JSON object using an HTTP POST request.
+void sendBothToSupabase(SensorData s1, SensorData s2) {
+  HTTPClient http;            // Create HTTPClient object for this request
+  http.begin(SUPABASE_URL);   // Set the endpoint URL (defined in arduino_secrets.h, e.g. your Supabase REST endpoint)
+
+  // Add HTTP headers so Supabase recognizes and accepts the request
+  http.addHeader("Content-Type", "application/json");                  // Tell server we are sending JSON
+  http.addHeader("apikey", SUPABASE_KEY);                              // Supabase API key
+  http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);   // Bearer token with same key
+
+  // Build the JSON body as a String
+  // Example result:
+  // {
+  //   "bus_voltage_1": 12.34500,
+  //   "shunt_voltage_1": 0.001234,
+  //   "current_1": 1.234567,
+  //   "power_1": 12.345678,
+  //   "bus_voltage_2": 11.11111,
+  //   "shunt_voltage_2": 0.000999,
+  //   "current_2": 1.000000,
+  //   "power_2": 10.000000
+  // }
+  String json = "{";
+
+  // Sensor 1 fields
+  json += "\"bus_voltage_1\":" + String(s1.bus, 5) + ",";      // 5 decimal places
+  json += "\"shunt_voltage_1\":" + String(s1.shunt, 6) + ",";  // 6 decimal places
+  json += "\"current_1\":" + String(s1.current, 6) + ",";      // 6 decimal places
+  json += "\"power_1\":" + String(s1.power, 6) + ",";          // 6 decimal places
+
+  // Sensor 2 fields
+  json += "\"bus_voltage_2\":" + String(s2.bus, 5) + ",";      // 5 decimal places
+  json += "\"shunt_voltage_2\":" + String(s2.shunt, 6) + ",";  // 6 decimal places
+  json += "\"current_2\":" + String(s2.current, 6) + ",";      // 6 decimal places
+  json += "\"power_2\":" + String(s2.power, 6);                // 6 decimal places, no trailing comma for last field
+
+  json += "}"; // Close the JSON object
+
+  // Perform the POST request with the JSON body
+  int code = http.POST(json);
+
+  // Print HTTP status code to Serial (e.g., 200 = OK, 201 = Created, 400/401/etc = error)
+  Serial.print("HTTP: ");
+  Serial.println(code);
+
+  // Print server response body (if any) for debugging
+  Serial.println(http.getString());
+
+  // Always end the HTTP connection to free resources
+  http.end();
+}
